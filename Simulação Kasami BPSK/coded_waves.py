@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import correlate, max_len_seq, firls, firwin2, firwin, fftconvolve, unit_impulse, gausspulse
+from scipy.signal import correlate, max_len_seq, gausspulse
 from scipy.ndimage import shift
-import scipy.io
 from scipy.linalg import hadamard
-
+import matplotlib as mpl
+mpl.use('TkAgg')
 
 def delta(n):
     return 1. * (n == 0)
@@ -120,26 +120,51 @@ def correlacionar_sinal(sinalRecebido, ondas_codificadas, time_shift):
             sinaisFiltrados[k, i, :] = shift(sinaisFiltrados[k, i], -tf / time_shift)
     return sinaisFiltrados
 
+def POC(sinalRecebido, ondas_codificadas, time_shift):
+    """
+    Correlaciona a matriz do sinal de eco com os diversos códigos no tempo
+    Parameters
+    ----------
+    sinalRecebido: sinal de eco nas dimensões: Elementos x Tempo
+    ondas_codificadas: Códigos x Tempo
+    time_shift: deslocamento temporal aplicado após a correlação
+
+    Returns
+    -------
+    sinaisFiltrados: resultado nas dimensões: Códigos x Elementos x Tempo
+    """
+    tf = np.shape(sinalRecebido)[1]
+    sinaisFiltrados = np.zeros((len(ondas_codificadas), len(sinalRecebido), tf))
+    for k in range(len(ondas_codificadas)):
+        for i in range(len(sinalRecebido)):
+            A = np.fft.fft(sinalRecebido[i]) + 1e-16 + 1e-16j
+            B = np.fft.fft(ondas_codificadas[k]) + 1e-16 + 1e-16j
+            B_conj = np.conjugate(B)
+            C = A*B_conj/np.abs(A*B_conj)
+            sinaisFiltrados[k, i, :] = np.fft.ifft(C).real
+            sinaisFiltrados[k, i, :] = shift(sinaisFiltrados[k, i], time_shift)
+    return sinaisFiltrados
+
 if __name__ == '__main__':
+    bits = 8
     n = 4
-    # max_len_seq = linear-feedback shift register (LFSR)
-    bits = kasami_large(5, 4)  # dim(n, 2^n-1)
-    y = BPSK(bits, 5e6, 120e6)
-    # y = filtro_binario(bits, 12e-6, 6.67e-9, 5e6, 0.9)
-    # amostra_por_bit = round(1/(2*5e6*6.67e-9))
-    # bits = (np.repeat(bits, amostra_por_bit, axis=1)-1)/2
-    # plt.show()
-    # exit()
-    # y = []
-    # for k in range(0, n):
-    #     y.append(binary_phase_shift_keying(H[k]))
-    #     # y.append(H[k])
+    codes = kasami_large(bits, n)
+    y = BPSK(codes, 5e6, 120e6)
     v = np.zeros(n * len(y[0]))
     for i in range(n):
         v[i * len(y[0]):(i + 1) * len(y[0])] = y[i]
 
+    y_0 = y.copy()
+    y = np.pad(y, ((0, 0), (0, len(v) - len(y[0]))), constant_values=0)  # Fill with zeros
+
+    A = np.fft.fft(v) + 1e-16 + 1e-16j
+    B = np.fft.fft(y) + 1e-16 + 1e-16j
+    B_conj = np.conjugate(B)
+    C = A * B_conj / np.abs(A * B_conj)
+    c = np.fft.ifft(C).real
+
     fig = plt.figure(figsize=(5, 3), layout="constrained")
-    fig.suptitle('Kasami Large Set n=' + str(n))
+    fig.suptitle('Kasami Large Set ' + str(2**bits-1)+' bits + Phase Only Correlation')
     spec = fig.add_gridspec(5, 2)
 
     # ax5 = fig.add_subplot(spec[5, :])
@@ -153,31 +178,31 @@ if __name__ == '__main__':
 
     ax10 = fig.add_subplot(spec[1, 0])
     ax10.set_title('Onda Código 1')
-    ax10.plot(y[0])
+    ax10.plot(y_0[0])
     ax11 = fig.add_subplot(spec[1, 1])
     ax11.set_title('Correlação Sinal com Onda 1')
-    ax11.plot(correlate(v, y[0]))
+    ax11.plot(c[0])
 
     ax20 = fig.add_subplot(spec[2, 0])
     ax20.set_title('Onda Código 2')
-    ax20.plot(y[1])
+    ax20.plot(y_0[1])
     ax21 = fig.add_subplot(spec[2, 1])
     ax21.set_title('Correlação Sinal com Onda 2')
-    ax21.plot(correlate(v, y[1]))
+    ax21.plot(c[1])
 
     ax30 = fig.add_subplot(spec[3, 0])
     ax30.set_title('Onda Código 3')
-    ax30.plot(y[2])
+    ax30.plot(y_0[2])
     ax31 = fig.add_subplot(spec[3, 1])
     ax31.set_title('Correlação Sinal com Onda 3')
-    ax31.plot(correlate(v, y[2]))
+    ax31.plot(c[2])
 
     ax40 = fig.add_subplot(spec[4, 0])
     ax40.set_title('Onda Código 4')
-    ax40.plot(y[3])
+    ax40.plot(y_0[3])
     ax41 = fig.add_subplot(spec[4, 1])
     ax41.set_title('Correlação Sinal com Onda 4')
-    ax41.plot(correlate(v, y[3]))
+    ax41.plot(c[3])
 
     fig.set_size_inches(12, 6)
     plt.savefig('test.png', dpi=fig.dpi)
