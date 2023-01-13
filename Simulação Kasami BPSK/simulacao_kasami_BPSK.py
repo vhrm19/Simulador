@@ -15,7 +15,14 @@ Dt = 8e-9
 
 Lx = 50e-3   # Block width
 Lz = 50e-3   # Block height
-Lt = 31e-6    # Simulation time
+Lt = 32e-6    # Simulation time
+'''
+bits = 5 : Lt = 10e-6
+bits = 6 : Lt = 16e-6
+bits = 7 : Lt = 31e-6
+bits = 8 : Lt = 54e-6
+? Lt = 2**(bits-2)e-6 ?
+'''
 
 Nx = round(Lx / Dx)
 Nz = round(Lz / Dz)
@@ -40,7 +47,7 @@ irx = np.int32(irx)
 irz = np.zeros_like(irx)
 
 angulos = np.array([-0.8, -0.6, -0.4, -0.2,  0. ,  0.2,  0.4,  0.6,  0.8])
-# angulos = [ -0.8 ]
+# angulos = [0]
 
 COM_CODIGO = True
 
@@ -85,7 +92,8 @@ plt.imshow(a2.T, aspect = 'auto', interpolation='nearest')
 plt.title('Resposta ao impulso espacial')
 plt.colorbar()
 
-pos_correlacao = cw.correlacionar_sinal(a2, coded_waves, 2)
+# pos_correlacao = cw.correlacionar_sinal(a2, coded_waves, 2.075)
+pos_correlacao = cw.POC(a2, coded_waves, 3/(fc*Dt))
 
 x = np.arange(0, Lx, Dx)
 z = np.arange(0, Lx, Dx)
@@ -101,6 +109,9 @@ for i in range(len(angulos)):
 if(COM_CODIGO):
     sinal_analitico = np.swapaxes(pos_correlacao, 1, 2)
     sinal_analitico = hilbert(sinal_analitico, axis=1)
+    plt.figure(2)
+    plt.imshow(np.abs(sinal_analitico[0]), aspect='auto')
+    plt.title('pré CPWC')
     f = cpwc_kernel(x, z, xt, c_som, ti * Dt, angulos, sinal_analitico, Dt)
 else:
     sinal_analitico = np.sum(a, axis=1)
