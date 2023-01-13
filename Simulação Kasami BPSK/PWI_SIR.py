@@ -17,21 +17,21 @@ def sim_pw(angle, irx, irz, Nt, scatter, coded_wave, dist_elem, c, Dx):
     N_elem = len(irx)
     delay = np.arange(len(irx)) * dist_elem * np.sin(angle) / (Dx)
     delay -= np.min(delay)
-    y = np.zeros((N_elem, N_elem, Nt))
+    y = np.zeros((N_elem, N_elem, Nt), dtype='float32')
     for e in range(N_elem):
         for r in range(N_elem):
             y[e, r, :] = sim_e_r(e, r, irx, irz, coded_wave, delay, scatter, c)
     return y
 
 def sim_pwi(angles, scatter, coded_waves, irx, irz, Nt, dist_elem, c, Dx):
-    y = np.zeros((len(angles), len(irx), len(irx), Nt))
+    y = np.zeros((len(angles), len(irx), len(irx), Nt), dtype='float32')
     for i in range(len(angles)):
         y[i] += sim_pw(angles[i], irx, irz, Nt, scatter, coded_waves[i], dist_elem, c, Dx)
     return y
 
 def sim_pwi_phantom(angles, scatters, coded_waves, irx, irz, Nt, dist_elem, c, Dx):
     # scatters: matriz com as linhas contendo as coordenadas dos scatters
-    y = np.zeros((len(angles), len(irx), len(irx), Nt)) # Angulos x Emissores x Receptores x Tempo
+    y = np.zeros((len(angles), len(irx), len(irx), Nt), dtype='float32') # Angulos x Emissores x Receptores x Tempo
     for scatter in scatters:
         y += sim_pwi(angles, scatter, coded_waves, irx, irz, Nt, dist_elem, c, Dx)
     return y
